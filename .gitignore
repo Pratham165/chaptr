@@ -15,10 +15,12 @@
 
 # production
 /build
+graphify-out/
 
 # misc
 .DS_Store
 *.pem
+.venv
 
 # debug
 npm-debug.log*
@@ -26,7 +28,14 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
+.env
 .env*.local
+.env.local
+.env.development
+.env.test
+.env.production
+!.env.example
+
 
 # vercel
 .vercel
@@ -34,3 +43,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# docs
+docs/
+summary.md
+
+#misc
+.agents/
+.qodo/
+test-results/
+
+

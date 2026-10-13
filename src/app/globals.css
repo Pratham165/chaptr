@@ -1,27 +1,65 @@
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-}
-
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  /* Halftone dot pattern: for empty states and section dividers only */
+  .halftone-pattern {
+    background-image: radial-gradient(#2A2A2E 1px, transparent 1px);
+    background-size: 8px 8px;
+    opacity: 0.18;
+  }
+}
+
+@layer base {
+  :root {
+    --background: #0B0B0D;
+    --foreground: #F5F3EE;
+    --card: #141416;
+    --card-foreground: #F5F3EE;
+    --popover: #141416;
+    --popover-foreground: #F5F3EE;
+    --primary: #E8432E;
+    --primary-foreground: #F5F3EE;
+    --secondary: #141416;
+    --secondary-foreground: #F5F3EE;
+    --muted: #1A1A1E;
+    --muted-foreground: #9B968C;
+    --accent: #E8432E;
+    --accent-foreground: #F5F3EE;
+    --destructive: #8C2A1D;
+    --border: #2A2A2E;
+    --input: #2A2A2E;
+    --ring: #E8432E;
+    --radius: 4px;
+
+    /* Design System Tokens */
+    --ink-950: #0B0B0D;
+    --ink-900: #141416;
+    --ink-700: #2A2A2E;
+    --paper-50: #F5F3EE;
+    --paper-400: #9B968C;
+    --accent-red: #E8432E;
+    --accent-red-dim: #8C2A1D;
+    --status-reading: #4A9B7F;
+    --status-hold: #C9A94B;
+    --status-done: #5B6FA8;
+    --status-dropped: #8C867A;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    background-color: #0B0B0D;
+    color: #F5F3EE;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
