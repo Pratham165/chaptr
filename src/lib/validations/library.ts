@@ -36,7 +36,7 @@ export type RemoveSeriesInput = z.infer<typeof removeSeriesSchema>;
 export const searchQuerySchema = z
   .string()
   .trim()
-  .min(2, "Search query must be at least 2 characters")
+  .min(1, "Search query must be at least 1 character")
   .max(100, "Search query must be at most 100 characters");
 
 export type SearchQueryInput = z.infer<typeof searchQuerySchema>;

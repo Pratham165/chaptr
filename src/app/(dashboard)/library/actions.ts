@@ -20,6 +20,7 @@ import {
 } from "@/lib/mangadex";
 import { userActionRatelimit } from "@/lib/redis";
 import { AuthorizationError } from "@/lib/errors";
+import { computeHasUpdate } from "@/lib/chapters";
 import type { ReadingProgress, Series } from "@prisma/client";
 
 export type ActionResult<T = unknown> =
@@ -90,7 +91,10 @@ export async function addSeriesToLibrary(
       },
     });
 
-    // 3. Attempt creation directly and catch P2002 to prevent duplicate race conditions
+    // 3. Compute initial hasUpdate based on series.latestChapter
+    const hasUpdate = computeHasUpdate(series.latestChapter, 0, "READING");
+
+    // 4. Attempt creation directly and catch P2002 to prevent duplicate race conditions
     try {
       const readingProgress = await db.readingProgress.create({
         data: {
@@ -98,7 +102,7 @@ export async function addSeriesToLibrary(
           seriesId: series.id,
           status: "READING",
           lastReadChapter: 0,
-          hasUpdate: false,
+          hasUpdate,
         },
         include: {
           series: true,
@@ -183,10 +187,12 @@ export async function updateReadingProgress(
       return { ok: false, error: "Reading progress record not found" };
     }
 
-    // 2. Recompute hasUpdate: true if series.latestChapter is not null and greater than lastReadChapter, else false
-    const hasUpdate =
-      progress.series.latestChapter !== null &&
-      progress.series.latestChapter > validated.lastReadChapter;
+    // 2. Recompute hasUpdate using shared pure computeHasUpdate function
+    const hasUpdate = computeHasUpdate(
+      progress.series.latestChapter,
+      validated.lastReadChapter,
+      validated.status
+    );
 
     // 3. Update using updateMany with { id, userId } and check count === 1
     const updateResult = await db.readingProgress.updateMany({
@@ -213,6 +219,7 @@ export async function updateReadingProgress(
     };
 
     revalidatePath("/library");
+    revalidatePath("/dashboard");
     return { ok: true, data: updated };
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {
@@ -222,9 +229,6 @@ export async function updateReadingProgress(
       };
     }
     if (err instanceof AuthorizationError) {
-      return { ok: false, error: err.message };
-    }
-    if (err instanceof MangaDexRateLimitError) {
       return { ok: false, error: err.message };
     }
     console.error("updateReadingProgress error:", err);

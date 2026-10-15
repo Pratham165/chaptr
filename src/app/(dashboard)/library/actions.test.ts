@@ -57,6 +57,7 @@ vi.mock("@/lib/mangadex", async (importOriginal) => {
 
 // Mock redis module
 vi.mock("@/lib/redis", () => ({
+  REDIS_KEY_PREFIX: "",
   userActionRatelimit: {
     limit: vi.fn(),
   },
@@ -267,6 +268,48 @@ describe("Library Server Actions", () => {
         expect(result3.data.hasUpdate).toBe(false);
       }
     });
+
+    it("(e) ON_HOLD status allows hasUpdate = true when unread chapters exist", async () => {
+      setupOwnerAndProgress(15);
+      const result = await updateReadingProgress(mockProgressId, 10, "ON_HOLD");
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data.hasUpdate).toBe(true);
+      }
+      expect(db.readingProgress.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ hasUpdate: true, status: "ON_HOLD" }),
+        })
+      );
+    });
+
+    it("(f) COMPLETED and DROPPED never flag hasUpdate even if behind latestChapter", async () => {
+      // COMPLETED
+      setupOwnerAndProgress(20);
+      const resCompleted = await updateReadingProgress(mockProgressId, 10, "COMPLETED");
+      expect(resCompleted.ok).toBe(true);
+      if (resCompleted.ok) {
+        expect(resCompleted.data.hasUpdate).toBe(false);
+      }
+      expect(db.readingProgress.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ hasUpdate: false, status: "COMPLETED" }),
+        })
+      );
+
+      // DROPPED
+      setupOwnerAndProgress(20);
+      const resDropped = await updateReadingProgress(mockProgressId, 10, "DROPPED");
+      expect(resDropped.ok).toBe(true);
+      if (resDropped.ok) {
+        expect(resDropped.data.hasUpdate).toBe(false);
+      }
+      expect(db.readingProgress.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ hasUpdate: false, status: "DROPPED" }),
+        })
+      );
+    });
   });
 
   describe("removeSeriesFromLibrary ownership checks", () => {
@@ -411,6 +454,53 @@ describe("Library Server Actions", () => {
           coverUrl: `https://uploads.mangadex.org/covers/${validUuid}/cover.jpg`,
         },
       });
+    });
+
+    it("creates progress row with hasUpdate: true when stored latestChapter is already higher than 0", async () => {
+      mockAuth.mockResolvedValueOnce({
+        user: { id: mockOwnerId },
+        expires: new Date().toISOString(),
+      } as unknown as Session);
+
+      vi.mocked(getMangaDexSeries).mockResolvedValueOnce({
+        mangadexId: validUuid,
+        title: "Popular Existing Series",
+        coverUrl: `https://uploads.mangadex.org/covers/${validUuid}/cover.jpg`,
+        contentRating: "safe",
+      });
+
+      // Series in DB already has latestChapter = 25
+      vi.mocked(db.series.upsert).mockResolvedValueOnce({
+        id: "series-uuid-pop",
+        mangadexId: validUuid,
+        title: "Popular Existing Series",
+        coverUrl: `https://uploads.mangadex.org/covers/${validUuid}/cover.jpg`,
+        latestChapter: 25,
+      } as Series);
+
+      vi.mocked(db.readingProgress.create).mockResolvedValueOnce({
+        id: "progress-pop",
+        userId: mockOwnerId,
+        seriesId: "series-uuid-pop",
+        status: "READING",
+        lastReadChapter: 0,
+        hasUpdate: true,
+        series: { id: "series-uuid-pop", latestChapter: 25 } as Series,
+      } as unknown as ReadingProgress & { series: Series });
+
+      const result = await addSeriesToLibrary(validUuid);
+      expect(result.ok).toBe(true);
+
+      // Verify db.readingProgress.create was called with hasUpdate: true
+      expect(db.readingProgress.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            lastReadChapter: 0,
+            status: "READING",
+            hasUpdate: true,
+          }),
+        })
+      );
     });
 
     it("enforces per-user rate limit with identifier add:${userId}", async () => {
@@ -577,16 +667,16 @@ describe("Library Server Actions", () => {
   });
 
   describe("searchMangaAction protection and rate limiting", () => {
-    it("validates query length (rejects < 2 or > 100 characters)", async () => {
+    it("validates query length (rejects < 1 or > 100 characters)", async () => {
       mockAuth.mockResolvedValueOnce({
         user: { id: mockOwnerId },
         expires: new Date().toISOString(),
       } as unknown as Session);
 
-      const shortResult = await searchMangaAction("a");
+      const shortResult = await searchMangaAction("");
       expect(shortResult.ok).toBe(false);
       if (!shortResult.ok) {
-        expect(shortResult.error).toContain("at least 2 characters");
+        expect(shortResult.error).toContain("at least 1 character");
       }
 
       mockAuth.mockResolvedValueOnce({

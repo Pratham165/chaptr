@@ -12,6 +12,7 @@ import {
 import { redis, mangadexRatelimit } from "@/lib/redis";
 
 vi.mock("@/lib/redis", () => ({
+  REDIS_KEY_PREFIX: "",
   redis: {
     get: vi.fn(),
     set: vi.fn(),

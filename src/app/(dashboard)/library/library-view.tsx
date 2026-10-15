@@ -23,10 +23,16 @@ export function LibraryView({ initialSeries }: LibraryViewProps) {
     return new Set(seriesList.map((item) => item.series.mangadexId));
   }, [seriesList]);
 
-  // Filter series according to active tab
+  // Filter series according to active tab, sorting series with hasUpdate first
   const filteredSeries = useMemo(() => {
-    if (activeFilter === "ALL") return seriesList;
-    return seriesList.filter((item) => item.status === activeFilter);
+    const list =
+      activeFilter === "ALL"
+        ? seriesList
+        : seriesList.filter((item) => item.status === activeFilter);
+    return [...list].sort((a, b) => {
+      if (a.hasUpdate === b.hasUpdate) return 0;
+      return a.hasUpdate ? -1 : 1;
+    });
   }, [seriesList, activeFilter]);
 
   const handleUpdate = (updated: TrackedSeriesItem) => {

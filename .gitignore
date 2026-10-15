@@ -45,7 +45,6 @@ yarn-error.log*
 next-env.d.ts
 
 # docs
-docs/
 summary.md
 
 #misc

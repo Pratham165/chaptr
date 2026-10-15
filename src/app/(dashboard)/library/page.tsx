@@ -24,9 +24,10 @@ export default async function LibraryPage() {
     include: {
       series: true,
     },
-    orderBy: {
-      updatedAt: "desc",
-    },
+    orderBy: [
+      { hasUpdate: "desc" },
+      { updatedAt: "desc" },
+    ],
   });
 
   return <LibraryView initialSeries={trackedSeries as unknown as TrackedSeriesItem[]} />;

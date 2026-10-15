@@ -1,15 +1,41 @@
 import { z } from "zod";
 
+/**
+ * Bcrypt silently truncates/ignores bytes past 72.
+ * Password validation rules:
+ * - Login: non-empty, maximum 72 BYTES (does not enforce minimum 10 to avoid locking out existing users)
+ * - Registration: minimum 10 characters, maximum 72 BYTES
+ */
+export const loginPasswordSchema = z
+  .string()
+  .min(1, "Password is required")
+  .refine(
+    (pwd) => Buffer.byteLength(pwd, "utf-8") <= 72,
+    "Password cannot exceed 72 bytes"
+  );
+
+export const registerPasswordSchema = z
+  .string()
+  .min(10, "Password must be at least 10 characters long")
+  .refine(
+    (pwd) => Buffer.byteLength(pwd, "utf-8") <= 72,
+    "Password cannot exceed 72 bytes"
+  );
+
 export const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters long"),
+  email: z.string().trim().toLowerCase().email("Invalid email address"),
+  password: loginPasswordSchema,
 });
 
 export const registerSchema = z
   .object({
-    name: z.string().min(2, "Name must be at least 2 characters long"),
-    email: z.string().email("Invalid email address"),
-    password: z.string().min(8, "Password must be at least 8 characters long"),
+    name: z
+      .string()
+      .trim()
+      .min(2, "Name must be at least 2 characters long")
+      .max(60, "Name cannot exceed 60 characters"),
+    email: z.string().trim().toLowerCase().email("Invalid email address"),
+    password: registerPasswordSchema,
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {

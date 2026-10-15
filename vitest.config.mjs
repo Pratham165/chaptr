@@ -11,10 +11,16 @@ export default defineConfig({
       UPSTASH_REDIS_REST_TOKEN: "mock-token",
       MANGADEX_CONTACT: "https://github.com/chaptr/chaptr",
     },
+    server: {
+      deps: {
+        inline: ["next-auth"],
+      },
+    },
   },
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "./src"),
+      "next/server": path.resolve(import.meta.dirname, "./node_modules/next/server.js"),
     },
   },
 });

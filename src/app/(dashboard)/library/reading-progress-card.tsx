@@ -183,11 +183,22 @@ export function ReadingProgressCard({
         <div className="pt-2 border-t border-ink-700/80 space-y-2">
           {!isEditing ? (
             <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <span className="text-paper-400">Read:</span>
-                <span className="font-mono text-paper-50 font-semibold text-sm">
-                  Ch. {item.lastReadChapter}
-                </span>
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-paper-400">Read:</span>
+                  <span className="font-mono text-paper-50 font-semibold text-sm">
+                    Ch. {item.lastReadChapter}
+                  </span>
+                </div>
+                <div className="text-[11px] text-paper-400 font-mono">
+                  {item.series.latestChapter !== null ? (
+                    <span>Latest: Ch. {item.series.latestChapter}</span>
+                  ) : (
+                    <span className="italic text-paper-400/70">
+                      Checking for chapters...
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Quick increment / decrement controls */}

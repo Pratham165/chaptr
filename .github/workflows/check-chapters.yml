@@ -1,0 +1,17 @@
+name: Check Chapters Cron
+
+on:
+  schedule:
+    # Run every 30 minutes
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check-chapters:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Chapter Check Endpoint
+        run: |
+          curl --fail -sS -X POST \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/check-chapters"

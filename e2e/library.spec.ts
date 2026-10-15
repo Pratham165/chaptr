@@ -3,7 +3,8 @@ import { db } from "../src/lib/db";
 import bcrypt from "bcrypt";
 
 test.describe("Library Feature End-to-End", () => {
-  const testEmail = "test-reader@chaptr.app";
+  const runId = Date.now();
+  const testEmail = `e2e-reader-${runId}@example.test`;
   const testPassword = "password123";
   let testUserId: string;
 
@@ -43,7 +44,7 @@ test.describe("Library Feature End-to-End", () => {
               id: "a7774250-d070-4945-84e7-f8ccaa041a46",
               type: "manga",
               attributes: {
-                title: { en: "Chainsaw Man" },
+                title: { en: "E2E Chainsaw Man" },
               },
               relationships: [
                 {
@@ -74,7 +75,7 @@ test.describe("Library Feature End-to-End", () => {
             id: "a7774250-d070-4945-84e7-f8ccaa041a46",
             type: "manga",
             attributes: {
-              title: { en: "Chainsaw Man" },
+              title: { en: "E2E Chainsaw Man" },
             },
             relationships: [
               {

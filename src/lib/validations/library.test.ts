@@ -65,15 +65,38 @@ describe("Library Zod Schemas", () => {
       }
     });
 
-    it("accepts queries between 2 and 100 characters", () => {
+    it("accepts queries between 1 and 100 characters, including single-character queries like '月' and 'X'", () => {
+      const resKanji = searchQuerySchema.safeParse("月");
+      expect(resKanji.success).toBe(true);
+      if (resKanji.success) {
+        expect(resKanji.data).toBe("月");
+      }
+
+      const resAscii = searchQuerySchema.safeParse("X");
+      expect(resAscii.success).toBe(true);
+      if (resAscii.success) {
+        expect(resAscii.data).toBe("X");
+      }
+
+      const resTrimmedKanji = searchQuerySchema.safeParse("  月  ");
+      expect(resTrimmedKanji.success).toBe(true);
+      if (resTrimmedKanji.success) {
+        expect(resTrimmedKanji.data).toBe("月");
+      }
+
+      const resTrimmedAscii = searchQuerySchema.safeParse("  X  ");
+      expect(resTrimmedAscii.success).toBe(true);
+      if (resTrimmedAscii.success) {
+        expect(resTrimmedAscii.data).toBe("X");
+      }
+
       expect(searchQuerySchema.safeParse("ab").success).toBe(true);
       expect(searchQuerySchema.safeParse("a".repeat(100)).success).toBe(true);
     });
 
-    it("rejects queries shorter than 2 characters after trim", () => {
+    it("rejects empty or whitespace-only queries after trim", () => {
       expect(searchQuerySchema.safeParse("").success).toBe(false);
-      expect(searchQuerySchema.safeParse("a").success).toBe(false);
-      expect(searchQuerySchema.safeParse("   a   ").success).toBe(false);
+      expect(searchQuerySchema.safeParse("   ").success).toBe(false);
     });
 
     it("rejects queries longer than 100 characters", () => {

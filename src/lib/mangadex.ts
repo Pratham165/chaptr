@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { redis, mangadexRatelimit } from "@/lib/redis";
+import { redis, mangadexRatelimit, REDIS_KEY_PREFIX } from "@/lib/redis";
 
 export function getMangaDexUserAgent(): string {
   const contact = process.env.MANGADEX_CONTACT;
@@ -158,6 +158,8 @@ export function extractCoverUrl(
 export interface MangaDexRequestOptions {
   waitForRateLimit?: boolean;
   maxRetries?: number;
+  timeoutMs?: number;
+  deadline?: number;
 }
 
 /**
@@ -171,7 +173,7 @@ export async function requestMangaDex(
   url: string | URL,
   options: MangaDexRequestOptions = {}
 ): Promise<Response> {
-  const { waitForRateLimit = false, maxRetries = 3 } = options;
+  const { waitForRateLimit = false, maxRetries = 3, timeoutMs, deadline } = options;
   let attempts = 0;
 
   while (attempts <= maxRetries) {
@@ -189,13 +191,22 @@ export async function requestMangaDex(
       const resetMs = (rateLimitResult.reset ?? Date.now() + 1000) - Date.now();
       const waitMs = Math.max(200, resetMs);
       if (waitForRateLimit && attempts <= maxRetries) {
+        if (deadline && Date.now() + waitMs >= deadline) {
+          throw new MangaDexRateLimitError("Rate limit wait would exceed deadline", waitMs);
+        }
         await new Promise((resolve) => setTimeout(resolve, waitMs));
         continue;
       }
       throw new MangaDexRateLimitError("Rate limited, try again shortly", waitMs);
     }
 
-    // 2. Perform network request
+    // 2. Perform network request with deadline-aware timeout
+    let effectiveTimeout = timeoutMs ?? 8000;
+    if (deadline) {
+      const remainingBeforeDeadline = deadline - Date.now();
+      effectiveTimeout = Math.min(effectiveTimeout, Math.max(100, remainingBeforeDeadline));
+    }
+
     let response: Response;
     try {
       response = await fetch(url.toString(), {
@@ -203,7 +214,7 @@ export async function requestMangaDex(
         headers: {
           "User-Agent": getMangaDexUserAgent(),
         },
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(effectiveTimeout),
       });
     } catch (networkErr: unknown) {
       const errorMsg =
@@ -217,6 +228,9 @@ export async function requestMangaDex(
       const retryAfterSeconds = retryAfterHeader ? parseInt(retryAfterHeader, 10) : 2;
       const waitMs = isNaN(retryAfterSeconds) ? 2000 : retryAfterSeconds * 1000;
       if (waitForRateLimit && attempts <= maxRetries) {
+        if (deadline && Date.now() + waitMs >= deadline) {
+          throw new MangaDexRateLimitError("Rate limit wait would exceed deadline", waitMs);
+        }
         await new Promise((resolve) => setTimeout(resolve, waitMs));
         continue;
       }
@@ -245,7 +259,7 @@ export async function searchMangaDex(
     };
   }
 
-  const cacheKey = `mangadex:search:${trimmed.toLowerCase()}`;
+  const cacheKey = `${REDIS_KEY_PREFIX}mangadex:search:${trimmed.toLowerCase()}`;
 
   // 1. Check Redis cache first to avoid consuming rate limit tokens
   try {
@@ -351,8 +365,8 @@ export async function getMangaDexSeries(
 ): Promise<MangaDexSearchResult | null> {
   if (!mangaId) return null;
 
-  const cacheKey = `mangadex:manga:${mangaId}`;
-  const notFoundKey = `mangadex:manga:404:${mangaId}`;
+  const cacheKey = `${REDIS_KEY_PREFIX}mangadex:manga:${mangaId}`;
+  const notFoundKey = `${REDIS_KEY_PREFIX}mangadex:manga:404:${mangaId}`;
 
   // 1. Check Redis cache
   try {

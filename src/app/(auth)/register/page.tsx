@@ -24,8 +24,8 @@ export default function RegisterPage() {
       return;
     }
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters long");
+    if (password.length < 10) {
+      setError("Password must be at least 10 characters long");
       return;
     }
 
@@ -133,7 +133,7 @@ export default function RegisterPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 8 characters"
+              placeholder="At least 10 characters"
               className="w-full px-3 py-2 bg-ink-950 border border-ink-700 rounded-[4px] text-paper-50 placeholder:text-paper-400/50 text-xs focus:outline-none focus:border-paper-400"
             />
           </div>

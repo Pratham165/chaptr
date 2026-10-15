@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { auth, signOut } from "@/lib/auth";
+import { db } from "@/lib/db";
 
 export default async function DashboardLayout({
   children,
@@ -7,6 +8,16 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const session = await auth();
+
+  // Query unread updates count strictly scoped to the authenticated session user
+  const unreadCount = session?.user?.id
+    ? await db.readingProgress.count({
+        where: {
+          userId: session.user.id,
+          hasUpdate: true,
+        },
+      })
+    : 0;
 
   return (
     <div className="min-h-screen flex flex-col bg-ink-950 text-paper-50 font-sans selection:bg-accent-red selection:text-paper-50">
@@ -29,9 +40,18 @@ export default async function DashboardLayout({
               </Link>
               <Link
                 href="/dashboard"
-                className="text-paper-400 hover:text-paper-50 font-medium transition-colors"
+                className="text-paper-400 hover:text-paper-50 font-medium transition-colors relative flex items-center gap-1.5"
               >
-                Dashboard
+                <span>Dashboard</span>
+                {unreadCount > 0 && (
+                  <span
+                    data-testid="nav-unread-indicator"
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-semibold text-paper-50 bg-accent-red rounded-full"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-paper-50" />
+                    <span>{unreadCount}</span>
+                  </span>
+                )}
               </Link>
             </nav>
           </div>

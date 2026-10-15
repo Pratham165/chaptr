@@ -35,11 +35,6 @@ export default function LoginPage() {
     });
   };
 
-  const fillDemo = () => {
-    setEmail("test-reader@chaptr.app");
-    setPassword("password123");
-    setError(null);
-  };
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 bg-ink-950 text-paper-50 font-sans">
@@ -110,18 +105,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="pt-2 border-t border-ink-700/60 space-y-3 text-center text-xs text-paper-400">
-          <div className="flex items-center justify-between bg-ink-950 px-3 py-2 rounded-[4px] border border-ink-700/60 text-[11px]">
-            <span className="text-paper-400/80">Demo: test-reader@chaptr.app</span>
-            <button
-              type="button"
-              onClick={fillDemo}
-              className="text-accent-red hover:underline uppercase font-mono tracking-wider font-semibold text-[10px]"
-            >
-              Auto-fill
-            </button>
-          </div>
-
+        <div className="pt-2 border-t border-ink-700/60 text-center text-xs text-paper-400">
           <div>
             Don&apos;t have an account?{" "}
             <Link
