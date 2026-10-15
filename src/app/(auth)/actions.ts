@@ -39,7 +39,7 @@ export async function registerAction(formData: FormData) {
   // Rate limit registration by normalized email AND client IP (if available)
   let ip: string | null = null;
   try {
-    const reqHeaders = headers();
+    const reqHeaders = await headers();
     ip = getClientIp(reqHeaders);
   } catch {
     // Fallback when called outside of active request context (e.g. testing)

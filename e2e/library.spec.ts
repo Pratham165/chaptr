@@ -1,11 +1,12 @@
 import { test, expect } from "@playwright/test";
 import { db } from "../src/lib/db";
 import bcrypt from "bcrypt";
+import { generateTestPassword } from "./test-helpers";
 
 test.describe("Library Feature End-to-End", () => {
   const runId = Date.now();
   const testEmail = `e2e-reader-${runId}@example.test`;
-  const testPassword = "password123";
+  const testPassword = generateTestPassword("Reader");
   let testUserId: string;
 
   test.beforeEach(async () => {

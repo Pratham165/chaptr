@@ -1,30 +1,32 @@
 import { test, expect } from "@playwright/test";
 import { db } from "../src/lib/db";
 import bcrypt from "bcrypt";
+import { generateTestPassword } from "./test-helpers";
 
 test.describe("Dashboard and Chapter Updates End-to-End", () => {
   const runId = Date.now();
   const user1Email = `e2e-user1-unread-${runId}@example.test`;
-  const user1Password = "password123";
+  const user1Password = generateTestPassword("User1");
   let user1Id: string;
 
   const user2Email = `e2e-user2-clean-${runId}@example.test`;
-  const user2Password = "password123";
+  const user2Password = generateTestPassword("User2");
   let user2Id: string;
 
   const testMangadexId = "e2e-series-mangadex-uuid-999";
 
   test.beforeEach(async () => {
-    const hashedPassword = await bcrypt.hash(user1Password, 10);
+    const hashedUser1Password = await bcrypt.hash(user1Password, 10);
+    const hashedUser2Password = await bcrypt.hash(user2Password, 10);
 
     // 1. Seed User 1
     const user1 = await db.user.upsert({
       where: { email: user1Email },
-      update: { password: hashedPassword },
+      update: { password: hashedUser1Password },
       create: {
         email: user1Email,
         name: "User One",
-        password: hashedPassword,
+        password: hashedUser1Password,
       },
     });
     user1Id = user1.id;
@@ -32,11 +34,11 @@ test.describe("Dashboard and Chapter Updates End-to-End", () => {
     // 2. Seed User 2
     const user2 = await db.user.upsert({
       where: { email: user2Email },
-      update: { password: hashedPassword },
+      update: { password: hashedUser2Password },
       create: {
         email: user2Email,
         name: "User Two",
-        password: hashedPassword,
+        password: hashedUser2Password,
       },
     });
     user2Id = user2.id;

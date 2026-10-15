@@ -5,10 +5,11 @@ import {
   isMangadexUploadHost,
   getMangaDexUserAgent,
   MangaDexRateLimitError,
+  MangaDexUnavailableError,
   searchMangaDex,
   getMangaDexSeries,
   NOT_FOUND_CACHE_TTL_SECONDS,
-} from "./mangadex";
+} from "./index";
 import { redis, mangadexRatelimit } from "@/lib/redis";
 
 vi.mock("@/lib/redis", () => ({
@@ -291,7 +292,7 @@ describe("MangaDex Helper Functions", () => {
       expect(fetchSpy).not.toHaveBeenCalled();
     });
 
-    it("throws friendly error on JSON parse failure in getMangaDexSeries", async () => {
+    it("throws MangaDexUnavailableError on JSON parse failure and does not cache failure", async () => {
       vi.mocked(redis.get).mockResolvedValue(null);
       const fetchSpy = vi.fn().mockResolvedValue({
         ok: true,
@@ -304,8 +305,37 @@ describe("MangaDex Helper Functions", () => {
       vi.spyOn(console, "error").mockImplementation(() => {});
 
       await expect(getMangaDexSeries(mangaId)).rejects.toThrow(
-        "Failed to parse MangaDex response"
+        MangaDexUnavailableError
       );
+      expect(redis.set).not.toHaveBeenCalled();
+    });
+
+    it("throws MangaDexUnavailableError on 5xx server errors and does not cache 404", async () => {
+      vi.mocked(redis.get).mockResolvedValue(null);
+      const fetchSpy = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: "Internal Server Error",
+      });
+      vi.stubGlobal("fetch", fetchSpy);
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      await expect(getMangaDexSeries(mangaId)).rejects.toThrow(
+        MangaDexUnavailableError
+      );
+      expect(redis.set).not.toHaveBeenCalled();
+    });
+
+    it("throws MangaDexUnavailableError on network errors / timeouts and does not cache 404", async () => {
+      vi.mocked(redis.get).mockResolvedValue(null);
+      const fetchSpy = vi.fn().mockRejectedValue(new Error("ETIMEDOUT"));
+      vi.stubGlobal("fetch", fetchSpy);
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      await expect(getMangaDexSeries(mangaId)).rejects.toThrow(
+        MangaDexUnavailableError
+      );
+      expect(redis.set).not.toHaveBeenCalled();
     });
   });
 });

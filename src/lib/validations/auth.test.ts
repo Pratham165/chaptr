@@ -6,7 +6,7 @@ describe("Auth Validation Schemas", () => {
     it("trims and lowercases email before validation in loginSchema", () => {
       const result = loginSchema.safeParse({
         email: "   Reader@Example.COM   ",
-        password: "password123",
+        password: "fake-test-password-123",
       });
 
       expect(result.success).toBe(true);
@@ -18,14 +18,14 @@ describe("Auth Validation Schemas", () => {
     it("trims and lowercases email before validation in registerSchema", () => {
       const result = registerSchema.safeParse({
         name: "Test User",
-        email: "   NEW.User@DOMAIN.co.uk   ",
-        password: "password123",
-        confirmPassword: "password123",
+        email: "   NEW.User@EXAMPLE.TEST   ",
+        password: "fake-test-password-123",
+        confirmPassword: "fake-test-password-123",
       });
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.email).toBe("new.user@domain.co.uk");
+        expect(result.data.email).toBe("new.user@example.test");
       }
     });
 
@@ -42,15 +42,15 @@ describe("Auth Validation Schemas", () => {
       for (const email of invalidEmails) {
         const loginRes = loginSchema.safeParse({
           email,
-          password: "password123",
+          password: "fake-test-password-123",
         });
         expect(loginRes.success).toBe(false);
 
         const regRes = registerSchema.safeParse({
           name: "Test User",
           email,
-          password: "password123",
-          confirmPassword: "password123",
+          password: "fake-test-password-123",
+          confirmPassword: "fake-test-password-123",
         });
         expect(regRes.success).toBe(false);
       }
@@ -266,8 +266,8 @@ describe("Auth Validation Schemas", () => {
       const res = registerSchema.safeParse({
         name: "Test User",
         email: "user@example.com",
-        password: "password123",
-        confirmPassword: "password456",
+        password: "fake-test-password-123",
+        confirmPassword: "fake-test-password-456",
       });
 
       expect(res.success).toBe(false);
@@ -280,8 +280,8 @@ describe("Auth Validation Schemas", () => {
       const res = registerSchema.safeParse({
         name: "A",
         email: "user@example.com",
-        password: "password123",
-        confirmPassword: "password123",
+        password: "fake-test-password-123",
+        confirmPassword: "fake-test-password-123",
       });
 
       expect(res.success).toBe(false);
@@ -291,8 +291,8 @@ describe("Auth Validation Schemas", () => {
       const res = registerSchema.safeParse({
         name: "     ",
         email: "user@example.com",
-        password: "password123",
-        confirmPassword: "password123",
+        password: "fake-test-password-123",
+        confirmPassword: "fake-test-password-123",
       });
 
       expect(res.success).toBe(false);
@@ -305,8 +305,8 @@ describe("Auth Validation Schemas", () => {
       const res = registerSchema.safeParse({
         name: "a".repeat(61),
         email: "user@example.com",
-        password: "password123",
-        confirmPassword: "password123",
+        password: "fake-test-password-123",
+        confirmPassword: "fake-test-password-123",
       });
 
       expect(res.success).toBe(false);
@@ -320,8 +320,8 @@ describe("Auth Validation Schemas", () => {
       const res = registerSchema.safeParse({
         name: `   ${sixtyChars}   `,
         email: "user@example.com",
-        password: "password123",
-        confirmPassword: "password123",
+        password: "fake-test-password-123",
+        confirmPassword: "fake-test-password-123",
       });
 
       expect(res.success).toBe(true);

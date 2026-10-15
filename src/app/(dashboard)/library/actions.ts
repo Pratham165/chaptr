@@ -16,6 +16,7 @@ import {
   getMangaDexSeries,
   isMangadexUploadHost,
   MangaDexRateLimitError,
+  MangaDexUnavailableError,
   type MangaDexSearchResult,
 } from "@/lib/mangadex";
 import { userActionRatelimit } from "@/lib/redis";
@@ -26,6 +27,27 @@ import type { ReadingProgress, Series } from "@prisma/client";
 export type ActionResult<T = unknown> =
   | { ok: true; data: T }
   | { ok: false; error: string };
+
+function handleActionError(err: unknown): ActionResult<never> {
+  if (err instanceof z.ZodError) {
+    return {
+      ok: false,
+      error: err.issues[0]?.message || "Validation failed",
+    };
+  }
+  if (
+    err instanceof AuthorizationError ||
+    err instanceof MangaDexRateLimitError ||
+    err instanceof MangaDexUnavailableError
+  ) {
+    return { ok: false, error: err.message };
+  }
+  console.error("Action error:", err);
+  return {
+    ok: false,
+    error: "Something went wrong. Please try again.",
+  };
+}
 
 /**
  * Adds a series from MangaDex to the authenticated user's library.
@@ -126,23 +148,7 @@ export async function addSeriesToLibrary(
       throw createErr;
     }
   } catch (err: unknown) {
-    if (err instanceof z.ZodError) {
-      return {
-        ok: false,
-        error: err.issues[0]?.message || "Validation failed",
-      };
-    }
-    if (err instanceof AuthorizationError) {
-      return { ok: false, error: err.message };
-    }
-    if (err instanceof MangaDexRateLimitError) {
-      return { ok: false, error: err.message };
-    }
-    console.error("addSeriesToLibrary error:", err);
-    return {
-      ok: false,
-      error: "Something went wrong. Please try again.",
-    };
+    return handleActionError(err);
   }
 }
 
@@ -222,20 +228,7 @@ export async function updateReadingProgress(
     revalidatePath("/dashboard");
     return { ok: true, data: updated };
   } catch (err: unknown) {
-    if (err instanceof z.ZodError) {
-      return {
-        ok: false,
-        error: err.issues[0]?.message || "Validation failed",
-      };
-    }
-    if (err instanceof AuthorizationError) {
-      return { ok: false, error: err.message };
-    }
-    console.error("updateReadingProgress error:", err);
-    return {
-      ok: false,
-      error: "Something went wrong. Please try again.",
-    };
+    return handleActionError(err);
   }
 }
 
@@ -273,23 +266,7 @@ export async function removeSeriesFromLibrary(
     revalidatePath("/library");
     return { ok: true, data: { success: true } };
   } catch (err: unknown) {
-    if (err instanceof z.ZodError) {
-      return {
-        ok: false,
-        error: err.issues[0]?.message || "Validation failed",
-      };
-    }
-    if (err instanceof AuthorizationError) {
-      return { ok: false, error: err.message };
-    }
-    if (err instanceof MangaDexRateLimitError) {
-      return { ok: false, error: err.message };
-    }
-    console.error("removeSeriesFromLibrary error:", err);
-    return {
-      ok: false,
-      error: "Something went wrong. Please try again.",
-    };
+    return handleActionError(err);
   }
 }
 
@@ -330,22 +307,6 @@ export async function searchMangaAction(
 
     return { ok: true, data: result.results };
   } catch (err: unknown) {
-    if (err instanceof z.ZodError) {
-      return {
-        ok: false,
-        error: err.issues[0]?.message || "Validation failed",
-      };
-    }
-    if (err instanceof AuthorizationError) {
-      return { ok: false, error: err.message };
-    }
-    if (err instanceof MangaDexRateLimitError) {
-      return { ok: false, error: err.message };
-    }
-    console.error("searchMangaAction error:", err);
-    return {
-      ok: false,
-      error: "Something went wrong. Please try again.",
-    };
+    return handleActionError(err);
   }
 }

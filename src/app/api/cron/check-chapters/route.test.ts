@@ -4,9 +4,13 @@ import { runChapterCheck } from "@/lib/chapters";
 import { NextRequest } from "next/server";
 
 // Mock runChapterCheck
-vi.mock("@/lib/chapters", () => ({
-  runChapterCheck: vi.fn(),
-}));
+vi.mock("@/lib/chapters", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/chapters")>();
+  return {
+    ...actual,
+    runChapterCheck: vi.fn(),
+  };
+});
 
 describe("Cron Route Handler (/api/cron/check-chapters)", () => {
   const validSecret32 = "a-very-secure-secret-that-is-at-least-32-chars-long";
@@ -150,7 +154,7 @@ describe("Cron Route Handler (/api/cron/check-chapters)", () => {
       expect(runChapterCheck).toHaveBeenCalled();
     });
 
-    it("respects CRON_BATCH_SIZE and CRON_TIME_BUDGET_MS environment variables", async () => {
+    it("respects CRON_BATCH_SIZE and clamps CRON_TIME_BUDGET_MS to 8000", async () => {
       process.env.CRON_BATCH_SIZE = "50";
       process.env.CRON_TIME_BUDGET_MS = "12000";
 
@@ -165,7 +169,7 @@ describe("Cron Route Handler (/api/cron/check-chapters)", () => {
 
       expect(runChapterCheck).toHaveBeenCalledWith({
         batchSize: 50,
-        timeBudgetMs: 12000,
+        timeBudgetMs: 8000,
       });
     });
   });

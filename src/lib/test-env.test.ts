@@ -114,20 +114,26 @@ describe("validateTestDatabaseEnv", () => {
 });
 
 describe("validateMigrationEnv", () => {
-  const realDb = "postgresql://user:pass@host:5432/neondb";
-  const realDirect = "postgresql://user:pass@direct-host:5432/neondb";
-  const testDb = "postgresql://user:pass@host:5432/neondb_test";
-  const testDirect = "postgresql://user:pass@direct-host:5432/neondb_test";
+  const realDb = "postgresql://user:pass@ep-prod-pooler.neon.tech:5432/neondb";
+  const realDirect = "postgresql://user:pass@ep-prod.neon.tech:5432/neondb";
+  const testDbPooler = "postgresql://user:pass@ep-test-pooler.neon.tech:5432/neondb_test";
+  const testDirect = "postgresql://user:pass@ep-test.neon.tech:5432/neondb_test";
 
-  it("throws when DATABASE_URL_TEST is missing", () => {
+  it("throws when DATABASE_URL_TEST is missing or whitespace-only", () => {
     expect(() =>
       validateMigrationEnv(realDb, undefined, realDirect, testDirect)
     ).toThrow("DATABASE_URL_TEST is not set");
+    expect(() =>
+      validateMigrationEnv(realDb, "   ", realDirect, testDirect)
+    ).toThrow("DATABASE_URL_TEST is not set");
   });
 
-  it("throws when DIRECT_URL_TEST is missing", () => {
+  it("throws when DIRECT_URL_TEST is missing or whitespace-only", () => {
     expect(() =>
-      validateMigrationEnv(realDb, testDb, realDirect, undefined)
+      validateMigrationEnv(realDb, testDbPooler, realDirect, undefined)
+    ).toThrow("DIRECT_URL_TEST is not set");
+    expect(() =>
+      validateMigrationEnv(realDb, testDbPooler, realDirect, "   ")
     ).toThrow("DIRECT_URL_TEST is not set");
   });
 
@@ -139,20 +145,53 @@ describe("validateMigrationEnv", () => {
 
   it("throws when DIRECT_URL_TEST is identical to normal DIRECT_URL", () => {
     expect(() =>
-      validateMigrationEnv(realDb, testDb, realDirect, realDirect)
+      validateMigrationEnv(realDb, testDbPooler, realDirect, realDirect)
     ).toThrow("DIRECT_URL_TEST is identical to normal DIRECT_URL");
   });
 
   it("throws when test db name does not contain test", () => {
-    const stagingDb = "postgresql://user:pass@host:5432/neondb_staging";
+    const stagingDb = "postgresql://user:pass@ep-test-pooler.neon.tech:5432/neondb_staging";
+    const stagingDirect = "postgresql://user:pass@ep-test.neon.tech:5432/neondb_staging";
     expect(() =>
-      validateMigrationEnv(realDb, stagingDb, realDirect, testDirect)
-    ).toThrow('must contain "test"');
+      validateMigrationEnv(realDb, stagingDb, realDirect, stagingDirect)
+    ).toThrow('DATABASE_URL_TEST database name ("neondb_staging") must contain "test"');
   });
 
-  it("succeeds when both test URLs are set, differ from normal URLs, and contain test", () => {
+  it("throws when direct URL has the normal DB name", () => {
+    const directNormalDb = "postgresql://user:pass@ep-test.neon.tech:5432/neondb";
     expect(() =>
-      validateMigrationEnv(realDb, testDb, realDirect, testDirect)
+      validateMigrationEnv(realDb, testDbPooler, realDirect, directNormalDb)
+    ).toThrow('DIRECT_URL_TEST database name ("neondb") must contain "test"');
+  });
+
+  it("throws when direct URL with test keyword is identical to normal DB name", () => {
+    const normalWithTest = "postgresql://user:pass@ep-prod.neon.tech:5432/neondb_test";
+    const directWithNormal = "postgresql://user:pass@ep-test.neon.tech:5432/neondb_test";
+    expect(() =>
+      validateMigrationEnv(normalWithTest, testDbPooler, normalWithTest, directWithNormal)
+    ).toThrow('DATABASE_URL_TEST database name ("neondb_test") is identical to normal database name');
+  });
+
+  it("throws when test DB names differ between DATABASE_URL_TEST and DIRECT_URL_TEST", () => {
+    const diffDbDirect = "postgresql://user:pass@ep-test.neon.tech:5432/other_test";
+    expect(() =>
+      validateMigrationEnv(realDb, testDbPooler, realDirect, diffDbDirect)
+    ).toThrow(
+      'DIRECT_URL_TEST database name ("other_test") does not match DATABASE_URL_TEST database name ("neondb_test")'
+    );
+  });
+
+  it("throws when hosts do not match after stripping -pooler suffix", () => {
+    const mismatchedDirect = "postgresql://user:pass@ep-different.neon.tech:5432/neondb_test";
+    expect(() =>
+      validateMigrationEnv(realDb, testDbPooler, realDirect, mismatchedDirect)
+    ).toThrow("do not point to the same host");
+  });
+
+  it("a correct pair passes (pooler host and direct host matching after removing -pooler)", () => {
+    expect(() =>
+      validateMigrationEnv(realDb, testDbPooler, realDirect, testDirect)
     ).not.toThrow();
   });
 });
+

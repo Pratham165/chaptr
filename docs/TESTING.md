@@ -41,7 +41,7 @@ transitions, Lenis scroll feel) — not worth the flakiness.
 ## Conventions
 
 - Test files: `*.test.ts` next to the file they test for units
-  (`lib/validations/series.test.ts`), `e2e/*.spec.ts` for Playwright specs.
+  (`src/lib/validations/series.test.ts`), `e2e/*.spec.ts` for Playwright specs.
 - Use a separate test database (or Prisma's test-transaction pattern) — never
   run tests against the real dev/prod Neon database.
 - Mock the MangaDex API in unit tests; e2e tests either mock it at the network
@@ -82,10 +82,19 @@ DIRECT_URL_TEST="postgresql://.../neondb_test?sslmode=require&channel_binding=re
 ```
 
 ### Safety Guards
-`playwright.config.ts` strictly enforces database isolation:
-1. `DATABASE_URL_TEST` must be explicitly defined; otherwise the test run refuses to start with an error.
-2. `DATABASE_URL_TEST` must not be identical to `DATABASE_URL`; if identical, the run immediately aborts to protect production/dev data.
-3. Both the Playwright test runner process and the Next.js `webServer` launched by Playwright run with `DATABASE_URL` and `DIRECT_URL` overridden by the test URLs.
+`playwright.config.ts` and `scripts/lib/test-env.mjs` strictly enforce database isolation:
+1. **Required & Non-Empty**: `DATABASE_URL_TEST` must be explicitly defined and not empty/whitespace-only; otherwise the test run refuses to start.
+2. **Database Name Must Contain "test"**: The database name in `DATABASE_URL_TEST` must contain `"test"` (case-insensitive).
+3. **Database Name Must Differ**: The test database name must differ from the normal `DATABASE_URL` database name.
+4. **Direct URL Migration Guards (`validateMigrationEnv`)**: When running migrations via `npm run db:migrate:test`:
+   - `DIRECT_URL_TEST` is strictly required.
+   - Its database name must contain `"test"` (case-insensitive).
+   - Its database name must differ from the normal `DATABASE_URL` database name.
+   - Its database name must equal the database name in `DATABASE_URL_TEST`.
+   - Both `DATABASE_URL_TEST` and `DIRECT_URL_TEST` must point to the same host (after normalizing away any `-pooler` suffix).
+5. **Runtime Overrides**: In the Playwright test runner process and Next.js `webServer`:
+   - `DATABASE_URL` is overridden by `DATABASE_URL_TEST`.
+   - `DIRECT_URL` is overridden only when `DIRECT_URL_TEST` is set.
 
 ### Applying Migrations to the Test Branch
 To apply existing Prisma migrations to the test database branch without touching the real database or modifying `prisma/schema.prisma`, use the cross-platform npm script:
@@ -95,8 +104,8 @@ npm run db:migrate:test
 ```
 
 This script:
-1. Loads `.env` and verifies both `DATABASE_URL_TEST` and `DIRECT_URL_TEST`.
-2. Refuses to run if either URL is missing or identical to the normal `DATABASE_URL` / `DIRECT_URL`.
+1. Loads `.env` and validates both `DATABASE_URL_TEST` and `DIRECT_URL_TEST` using the shared `validateMigrationEnv` helper.
+2. Refuses to run (exiting with code 1) if any guard fails.
 3. Runs `prisma migrate deploy` with `DATABASE_URL` and `DIRECT_URL` overridden for that child process only.
 
 ### Seed Data & Global Teardown

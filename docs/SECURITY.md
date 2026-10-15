@@ -29,7 +29,7 @@ personal — the realistic threats are:
   - Tokens are signed and stored exclusively in `httpOnly`, `sameSite: "lax"`, secure cookies (never `localStorage`).
   - Session lifetime is explicitly bounded: `maxAge = 7 days` (604,800 seconds) and `updateAge = 1 day` (86,400 seconds).
   - **No server-side revocation**: Because JWT sessions are stateless, individual sessions cannot be revoked server-side prior to expiration.
-  - The `Session` table in `prisma/schema.prisma` is **unused** by Auth.js (required by the Credentials provider architecture).
+  - The `Session` table is unused with the JWT strategy (it is part of the standard Prisma adapter schema). Credentials login works with JWT sessions.
 - E2E tests authenticate through the real UI login form (`/login`), verifying the real Credentials flow and session cookie setting.
 
 ### Authorization (the most important one for this app)

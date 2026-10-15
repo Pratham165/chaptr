@@ -7,6 +7,7 @@ import {
   ServiceUnavailableError,
   BCRYPT_ROUNDS,
   DUMMY_HASH,
+  authLogger,
 } from "./auth";
 import {
   authLoginEmailRatelimit,
@@ -249,7 +250,7 @@ describe("Auth Module & Custom Adapter", () => {
       const mockUser = {
         id: "u-123",
         name: "Test Reader",
-        email: "reader@chaptr.app",
+        email: "reader@example.test",
         password: "hashed-password",
         image: null,
       };
@@ -257,32 +258,32 @@ describe("Auth Module & Custom Adapter", () => {
       vi.mocked(db.user.findUnique).mockResolvedValue(mockUser as never);
       vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
 
-      const request = new Request("https://chaptr.app/api/auth/callback/credentials", {
+      const request = new Request("https://example.test/api/auth/callback/credentials", {
         headers: { "x-vercel-forwarded-for": "10.0.0.1" },
       });
 
       // Attempt login with uppercase and spaces
       const result = await authorize(
-        { email: "   Reader@CHAPTR.APP   ", password: "password123" },
+        { email: "   Reader@EXAMPLE.TEST   ", password: "fake-test-password-123" },
         request
       );
 
       // Verify rate limiter was called with normalized email and client IP
-      expect(authLoginEmailRatelimit.limit).toHaveBeenCalledWith("reader@chaptr.app");
+      expect(authLoginEmailRatelimit.limit).toHaveBeenCalledWith("reader@example.test");
       expect(authLoginIpRatelimit.limit).toHaveBeenCalledWith("10.0.0.1");
 
       // Verify db lookup used normalized email
       expect(db.user.findUnique).toHaveBeenCalledWith({
-        where: { email: "reader@chaptr.app" },
+        where: { email: "reader@example.test" },
       });
 
       // Verify bcrypt compared against user password
-      expect(bcrypt.compare).toHaveBeenCalledWith("password123", "hashed-password");
+      expect(bcrypt.compare).toHaveBeenCalledWith("fake-test-password-123", "hashed-password");
 
       expect(result).toEqual({
         id: "u-123",
         name: "Test Reader",
-        email: "reader@chaptr.app",
+        email: "reader@example.test",
         image: null,
       });
     });
@@ -292,7 +293,7 @@ describe("Auth Module & Custom Adapter", () => {
       const mockUser = {
         id: "u-123",
         name: "Test Reader",
-        email: "reader@chaptr.app",
+        email: "reader@example.test",
         password: "hashed-password",
         image: null,
       };
@@ -301,14 +302,14 @@ describe("Auth Module & Custom Adapter", () => {
       vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
 
       // No headers => getClientIp returns null
-      const request = new Request("https://chaptr.app/api/auth/callback/credentials");
+      const request = new Request("https://example.test/api/auth/callback/credentials");
 
       const result = await authorize(
-        { email: "reader@chaptr.app", password: "password123" },
+        { email: "reader@example.test", password: "fake-test-password-123" },
         request
       );
 
-      expect(authLoginEmailRatelimit.limit).toHaveBeenCalledWith("reader@chaptr.app");
+      expect(authLoginEmailRatelimit.limit).toHaveBeenCalledWith("reader@example.test");
       expect(authLoginIpRatelimit.limit).not.toHaveBeenCalled();
       expect(warnSpy).toHaveBeenCalledWith(
         expect.stringMatching(/Client IP could not be determined; skipping IP rate limit/i)
@@ -317,13 +318,13 @@ describe("Auth Module & Custom Adapter", () => {
       expect(result).toEqual({
         id: "u-123",
         name: "Test Reader",
-        email: "reader@chaptr.app",
+        email: "reader@example.test",
         image: null,
       });
 
       // Second authorize call with missing IP in same process must NOT warn again
       await authorize(
-        { email: "reader@chaptr.app", password: "password123" },
+        { email: "reader@example.test", password: "fake-test-password-123" },
         request
       );
       expect(warnSpy).toHaveBeenCalledTimes(1);
@@ -339,13 +340,13 @@ describe("Auth Module & Custom Adapter", () => {
         reset: Date.now() + 60000,
       });
 
-      const request = new Request("https://chaptr.app/api/auth/callback/credentials", {
+      const request = new Request("https://example.test/api/auth/callback/credentials", {
         headers: { "x-vercel-forwarded-for": "10.0.0.1" },
       });
 
       await expect(
         authorize(
-          { email: "user@example.com", password: "password123" },
+          { email: "user@example.test", password: "fake-test-password-123" },
           request
         )
       ).rejects.toThrow(RateLimitError);
@@ -363,13 +364,13 @@ describe("Auth Module & Custom Adapter", () => {
         reset: Date.now() + 60000,
       });
 
-      const request = new Request("https://chaptr.app/api/auth/callback/credentials", {
+      const request = new Request("https://example.test/api/auth/callback/credentials", {
         headers: { "x-vercel-forwarded-for": "10.0.0.2" },
       });
 
       await expect(
         authorize(
-          { email: "user@example.com", password: "password123" },
+          { email: "user@example.test", password: "fake-test-password-123" },
           request
         )
       ).rejects.toThrow(RateLimitError);
@@ -384,13 +385,13 @@ describe("Auth Module & Custom Adapter", () => {
         new Error("Upstash Redis connection timeout")
       );
 
-      const request = new Request("https://chaptr.app/api/auth/callback/credentials", {
+      const request = new Request("https://example.test/api/auth/callback/credentials", {
         headers: { "x-vercel-forwarded-for": "10.0.0.1" },
       });
 
       await expect(
         authorize(
-          { email: "user@example.com", password: "password123" },
+          { email: "user@example.test", password: "fake-test-password-123" },
           request
         )
       ).rejects.toThrow(ServiceUnavailableError);
@@ -404,16 +405,16 @@ describe("Auth Module & Custom Adapter", () => {
       vi.mocked(db.user.findUnique).mockResolvedValue(null);
       vi.mocked(bcrypt.compare).mockResolvedValue(false as never);
 
-      const request = new Request("https://chaptr.app/api/auth/callback/credentials");
+      const request = new Request("https://example.test/api/auth/callback/credentials");
       const result = await authorize(
-        { email: "unknown@example.com", password: "password123" },
+        { email: "unknown@example.test", password: "fake-test-password-123" },
         request
       );
 
       expect(result).toBeNull();
       // Dummy bcrypt compare MUST be called with DUMMY_HASH
       expect(bcrypt.compare).toHaveBeenCalledWith(
-        "password123",
+        "fake-test-password-123",
         DUMMY_HASH
       );
     });
@@ -422,7 +423,7 @@ describe("Auth Module & Custom Adapter", () => {
       const mockUser = {
         id: "u-123",
         name: "Test Reader",
-        email: "reader@chaptr.app",
+        email: "reader@example.test",
         password: "hashed-password",
         image: null,
       };
@@ -430,24 +431,24 @@ describe("Auth Module & Custom Adapter", () => {
       vi.mocked(db.user.findUnique).mockResolvedValue(mockUser as never);
       vi.mocked(bcrypt.compare).mockResolvedValue(false as never);
 
-      const request = new Request("https://chaptr.app/api/auth/callback/credentials");
+      const request = new Request("https://example.test/api/auth/callback/credentials");
       const result = await authorize(
-        { email: "reader@chaptr.app", password: "wrongpassword123" },
+        { email: "reader@example.test", password: "wrong-fake-password" },
         request
       );
 
       expect(result).toBeNull();
       expect(bcrypt.compare).toHaveBeenCalledWith(
-        "wrongpassword123",
+        "wrong-fake-password",
         "hashed-password"
       );
     });
 
     it("returns null immediately when credentials do not pass loginSchema", async () => {
-      const request = new Request("https://chaptr.app/api/auth/callback/credentials");
+      const request = new Request("https://example.test/api/auth/callback/credentials");
       // Empty password fails loginSchema (min 1 char)
       const result = await authorize(
-        { email: "reader@chaptr.app", password: "" },
+        { email: "reader@example.test", password: "" },
         request
       );
 
@@ -456,4 +457,118 @@ describe("Auth Module & Custom Adapter", () => {
       expect(bcrypt.compare).not.toHaveBeenCalled();
     });
   });
+
+  describe("authLogger", () => {
+    it("logs failed password events (CredentialsSignin) as one short line without stack trace", () => {
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const credError = new Error("Read more at https://errors.authjs.dev#credentialssignin");
+      credError.name = "CredentialsSignin";
+      credError.stack = "CredentialsSignin: Read more...\n    at authorize (auth.ts:100:10)";
+
+      authLogger.error(credError);
+
+      expect(warnSpy).not.toHaveBeenCalled();
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+      expect(errorSpy).toHaveBeenCalledWith("[auth] Sign-in failed: Invalid credentials");
+      // Verify no stack traces were logged
+      expect(errorSpy).not.toHaveBeenCalledWith(expect.stringContaining("at authorize"));
+
+      errorSpy.mockRestore();
+      warnSpy.mockRestore();
+    });
+
+    it("logs RateLimitError as a one-line warning without stack trace", () => {
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      // 1. Direct RateLimitError
+      const directError = new RateLimitError();
+      authLogger.error(directError);
+
+      expect(errorSpy).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy).toHaveBeenCalledWith("[auth] Rate limit exceeded during sign in");
+
+      // 2. Wrapped in NextAuth AuthError / CredentialsSignin cause
+      const wrappedError = new Error("CredentialsSignin") as Error & { cause: { err: Error } };
+      wrappedError.name = "CredentialsSignin";
+      wrappedError.cause = { err: new RateLimitError() };
+      authLogger.error(wrappedError);
+
+      expect(errorSpy).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledTimes(2);
+      expect(warnSpy).toHaveBeenLastCalledWith("[auth] Rate limit exceeded during sign in");
+
+      errorSpy.mockRestore();
+      warnSpy.mockRestore();
+    });
+
+    it("logs ServiceUnavailableError as a one-line warning without stack trace", () => {
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      // 1. Direct ServiceUnavailableError
+      const directError = new ServiceUnavailableError();
+      authLogger.error(directError);
+
+      expect(errorSpy).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy).toHaveBeenCalledWith("[auth] Service unavailable during sign in");
+
+      // 2. Wrapped in NextAuth AuthError / CredentialsSignin cause
+      const wrappedError = new Error("CredentialsSignin") as Error & { cause: { err: Error } };
+      wrappedError.name = "CredentialsSignin";
+      wrappedError.cause = { err: new ServiceUnavailableError() };
+      authLogger.error(wrappedError);
+
+      expect(errorSpy).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledTimes(2);
+      expect(warnSpy).toHaveBeenLastCalledWith("[auth] Service unavailable during sign in");
+
+      errorSpy.mockRestore();
+      warnSpy.mockRestore();
+    });
+
+    it("logs full details and stack trace for every other error type", () => {
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const genericError = new Error("Database connection dropped unexpectedly");
+      genericError.name = "DatabaseError";
+      genericError.stack = "DatabaseError: Database connection dropped\n    at pool.query";
+
+      authLogger.error(genericError);
+
+      expect(warnSpy).not.toHaveBeenCalled();
+      expect(errorSpy).toHaveBeenCalledWith("[auth] DatabaseError: Database connection dropped unexpectedly");
+      expect(errorSpy).toHaveBeenCalledWith(genericError.stack);
+
+      errorSpy.mockRestore();
+      warnSpy.mockRestore();
+    });
+
+    it("logs cause stack trace when available for other error types", () => {
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const innerError = new Error("Socket closed");
+      innerError.stack = "Error: Socket closed\n    at net.js:10";
+
+      const outerError = new Error("OAuthCallbackError") as Error & { cause: { err: Error } };
+      outerError.name = "OAuthCallbackError";
+      outerError.cause = { err: innerError };
+
+      authLogger.error(outerError);
+
+      expect(warnSpy).not.toHaveBeenCalled();
+      expect(errorSpy).toHaveBeenCalledWith("[auth] OAuthCallbackError: OAuthCallbackError");
+      expect(errorSpy).toHaveBeenCalledWith("[auth] cause:", innerError.stack);
+
+      errorSpy.mockRestore();
+      warnSpy.mockRestore();
+    });
+  });
 });
+

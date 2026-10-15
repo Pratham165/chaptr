@@ -19,7 +19,7 @@ should behave in this repo. Read this before generating or modifying code.
   and wait for confirmation before running `prisma migrate`.
 - `.env`, `.env.local` — never write real secret values into any file that isn't
   gitignored. Never print secret values back into chat/logs.
-- `lib/auth.ts` — auth config changes have security implications; explain the
+- `src/lib/auth.ts` — auth config changes have security implications; explain the
   change and why before applying it.
 
 ## Conventions to follow
@@ -27,7 +27,7 @@ should behave in this repo. Read this before generating or modifying code.
 - TypeScript strict mode stays on. Do not add `any` to silence an error — fix the
   underlying type issue or ask if the type is genuinely unknown.
 - All user input crossing a server boundary (server action, API route) must be
-  validated with a Zod schema from `lib/validations/` before touching the DB.
+  validated with a Zod schema from `src/lib/validations/` before touching the DB.
 - Every query/mutation that touches a `Series`, `ReadingProgress`, or any
   user-owned row must filter or check `userId` against the current session.
   Never write a query that trusts a client-supplied `userId`.

@@ -7,7 +7,11 @@ import {
 } from "./actions";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getMangaDexSeries, searchMangaDex } from "@/lib/mangadex";
+import {
+  getMangaDexSeries,
+  searchMangaDex,
+  MangaDexUnavailableError,
+} from "@/lib/mangadex";
 import { userActionRatelimit } from "@/lib/redis";
 import type { Session } from "next-auth";
 import type { ReadingProgress, Series } from "@prisma/client";
@@ -663,6 +667,38 @@ describe("Library Server Actions", () => {
         error: "Something went wrong. Please try again.",
       });
       expect(errorSpy).toHaveBeenCalled();
+    });
+
+    it("returns 'Series not found on MangaDex' only when getMangaDexSeries returns null (genuine 404)", async () => {
+      mockAuth.mockResolvedValueOnce({
+        user: { id: mockOwnerId },
+        expires: new Date().toISOString(),
+      } as unknown as Session);
+
+      vi.mocked(getMangaDexSeries).mockResolvedValueOnce(null);
+
+      const result = await addSeriesToLibrary(validUuid);
+      expect(result).toEqual({
+        ok: false,
+        error: "Series not found on MangaDex",
+      });
+    });
+
+    it("passes through 'MangaDex is unavailable right now. Please try again shortly.' when getMangaDexSeries throws MangaDexUnavailableError", async () => {
+      mockAuth.mockResolvedValueOnce({
+        user: { id: mockOwnerId },
+        expires: new Date().toISOString(),
+      } as unknown as Session);
+
+      vi.mocked(getMangaDexSeries).mockRejectedValueOnce(
+        new MangaDexUnavailableError()
+      );
+
+      const result = await addSeriesToLibrary(validUuid);
+      expect(result).toEqual({
+        ok: false,
+        error: "MangaDex is unavailable right now. Please try again shortly.",
+      });
     });
   });
 

@@ -17,11 +17,12 @@ export interface ChapterCheckSummary {
   stoppedEarly: boolean;
 }
 
-const REDIS_LOCK_KEY = `${REDIS_KEY_PREFIX}lock:chapter-check`;
-const DEFAULT_BATCH_SIZE = 30;
-const DEFAULT_TIME_BUDGET_MS = 7000;
-const LOCK_BUFFER_MS = 2000;
-const MIN_REMAINING_BUFFER_MS = 1500;
+export const REDIS_LOCK_KEY = `${REDIS_KEY_PREFIX}lock:chapter-check`;
+export const DEFAULT_BATCH_SIZE = 30;
+export const DEFAULT_TIME_BUDGET_MS = 7000;
+export const MAX_TIME_BUDGET_MS = 8000;
+export const LOCK_BUFFER_MS = 2000;
+export const MIN_REMAINING_BUFFER_MS = 1500;
 
 // Lua script to safely release distributed lock only if token matches
 const RELEASE_LOCK_SCRIPT = `
@@ -66,7 +67,8 @@ export async function runChapterCheck(
   options: RunChapterCheckOptions = {}
 ): Promise<ChapterCheckSummary> {
   const batchSize = Math.max(1, options.batchSize ?? DEFAULT_BATCH_SIZE);
-  const timeBudgetMs = Math.max(1000, options.timeBudgetMs ?? DEFAULT_TIME_BUDGET_MS);
+  const rawBudget = options.timeBudgetMs ?? DEFAULT_TIME_BUDGET_MS;
+  const timeBudgetMs = Math.min(MAX_TIME_BUDGET_MS, Math.max(1000, rawBudget));
   const lockTtlMs = timeBudgetMs + LOCK_BUFFER_MS;
   const lockToken = crypto.randomUUID();
 

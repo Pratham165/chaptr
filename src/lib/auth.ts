@@ -29,6 +29,71 @@ export class ServiceUnavailableError extends CredentialsSignin {
   message = "Service temporarily unavailable. Please try again later.";
 }
 
+export function isRateLimitError(error: unknown): boolean {
+  if (!error) return false;
+  const err = error as Record<string, unknown>;
+  const cause = ((err.cause as Record<string, unknown>)?.err ?? err.cause ?? err) as Record<string, unknown>;
+  return (
+    cause instanceof RateLimitError ||
+    cause?.code === "rate_limit_exceeded" ||
+    err.code === "rate_limit_exceeded" ||
+    err.type === "rate_limit_exceeded"
+  );
+}
+
+export function isServiceUnavailableError(error: unknown): boolean {
+  if (!error) return false;
+  const err = error as Record<string, unknown>;
+  const cause = ((err.cause as Record<string, unknown>)?.err ?? err.cause ?? err) as Record<string, unknown>;
+  return (
+    cause instanceof ServiceUnavailableError ||
+    cause?.code === "service_unavailable" ||
+    err.code === "service_unavailable" ||
+    err.type === "service_unavailable"
+  );
+}
+
+export function isCredentialsSigninError(error: unknown): boolean {
+  if (!error) return false;
+  const err = error as Record<string, unknown>;
+  const cause = ((err.cause as Record<string, unknown>)?.err ?? err.cause ?? err) as Record<string, unknown>;
+  return (
+    err.name === "CredentialsSignin" ||
+    err.type === "CredentialsSignin" ||
+    cause instanceof CredentialsSignin ||
+    cause?.name === "CredentialsSignin"
+  );
+}
+
+export const authLogger = {
+  error(error: Error) {
+    if (isRateLimitError(error)) {
+      console.warn("[auth] Rate limit exceeded during sign in");
+      return;
+    }
+    if (isServiceUnavailableError(error)) {
+      console.warn("[auth] Service unavailable during sign in");
+      return;
+    }
+    if (isCredentialsSigninError(error)) {
+      console.error("[auth] Sign-in failed: Invalid credentials");
+      return;
+    }
+    console.error(`[auth] ${error.name}: ${error.message}`);
+    if (
+      error.cause &&
+      typeof error.cause === "object" &&
+      "err" in error.cause &&
+      (error.cause as Record<string, unknown>).err instanceof Error
+    ) {
+      console.error("[auth] cause:", ((error.cause as Record<string, unknown>).err as Error).stack);
+    } else if (error.stack) {
+      console.error(error.stack);
+    }
+  },
+};
+
+
 /**
  * Wraps PrismaAdapter so createUser lowercases the email and getUserByEmail lowercases
  * its lookup, ensuring OAuth (such as Google sign-in) stores and queries normalized emails.
@@ -136,6 +201,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 
 export const authConfig: NextAuthConfig = {
   adapter: customPrismaAdapter(db),
+  logger: authLogger,
   session: {
     strategy: "jwt",
     maxAge: 7 * 24 * 60 * 60, // 7 days in seconds

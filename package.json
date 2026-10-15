@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "db:migrate:test": "node scripts/migrate-test.mjs",
     "db:audit:emails": "node scripts/report-unnormalized-emails.mjs"
   },
@@ -27,7 +28,6 @@
     "framer-motion": "^13.4.3",
     "lenis": "^1.3.26",
     "lucide-react": "^1.48.0",
-    "motion": "^13.4.2",
     "next": "14.2.35",
     "next-auth": "^5.0.0-beta.32",
     "react": "^18",
@@ -37,6 +37,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@next/env": "14.2.35",
     "@playwright/test": "^1.63.0",
     "@types/bcrypt": "^6.0.0",
     "@types/node": "^22.20.4",

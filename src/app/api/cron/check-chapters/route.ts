@@ -1,6 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import crypto from "crypto";
-import { runChapterCheck } from "@/lib/chapters";
+import {
+  runChapterCheck,
+  DEFAULT_TIME_BUDGET_MS,
+  MAX_TIME_BUDGET_MS,
+} from "@/lib/chapters";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 10; // 10s aligns with Vercel Hobby serverless function timeout
@@ -49,7 +53,8 @@ async function handleCheckChapters(request: NextRequest): Promise<NextResponse> 
     : NaN;
 
   const batchSize = !isNaN(envBatch) && envBatch > 0 ? envBatch : 30;
-  const timeBudgetMs = !isNaN(envBudget) && envBudget > 0 ? envBudget : 7000;
+  const rawBudget = !isNaN(envBudget) && envBudget > 0 ? envBudget : DEFAULT_TIME_BUDGET_MS;
+  const timeBudgetMs = Math.min(MAX_TIME_BUDGET_MS, rawBudget);
 
   try {
     const summary = await runChapterCheck({ batchSize, timeBudgetMs });

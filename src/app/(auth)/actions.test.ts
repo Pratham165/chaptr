@@ -8,6 +8,7 @@ import {
   resetMissingIpWarn,
 } from "@/lib/redis";
 import { CredentialsSignin } from "next-auth";
+import { headers } from "next/headers";
 
 // Mock next/headers
 vi.mock("next/headers", () => ({
@@ -61,7 +62,7 @@ vi.mock("@/lib/redis", async (importOriginal) => {
     authRegisterIpRatelimit: {
       limit: vi.fn(),
     },
-    getClientIp: vi.fn().mockReturnValue("198.51.100.1"),
+    getClientIp: vi.fn((headers) => actual.getClientIp(headers)),
   };
 });
 
@@ -108,19 +109,19 @@ describe("Auth Server Actions ((auth)/actions.ts)", () => {
       errSpy.mockRestore();
     });
     it("creates user on first registration and catches Prisma P2002 duplicate on second registration", async () => {
-      // 1. First registration with A@X.com
+      // 1. First registration with A@EXAMPLE.TEST
       vi.mocked(db.user.create).mockResolvedValueOnce({
         id: "u-1",
-        email: "a@x.com",
+        email: "a@example.test",
         name: "User One",
         password: "hashed_password_123",
       } as never);
 
       const form1 = new FormData();
       form1.set("name", "User One");
-      form1.set("email", "A@X.com");
-      form1.set("password", "validPass123");
-      form1.set("confirmPassword", "validPass123");
+      form1.set("email", "A@EXAMPLE.TEST");
+      form1.set("password", "fake-test-password-123");
+      form1.set("confirmPassword", "fake-test-password-123");
 
       const res1 = await registerAction(form1);
       expect(res1).toEqual({ success: true });
@@ -129,21 +130,21 @@ describe("Auth Server Actions ((auth)/actions.ts)", () => {
       expect(db.user.create).toHaveBeenCalledWith({
         data: {
           name: "User One",
-          email: "a@x.com",
+          email: "a@example.test",
           password: "hashed_password_123",
         },
       });
 
-      // 2. Second registration with a@x.com throws Prisma P2002 unique constraint error
+      // 2. Second registration with a@example.test throws Prisma P2002 unique constraint error
       const p2002Error = new Error("Unique constraint failed on the fields: (`email`)");
       (p2002Error as unknown as { code: string }).code = "P2002";
       vi.mocked(db.user.create).mockRejectedValueOnce(p2002Error);
 
       const form2 = new FormData();
       form2.set("name", "User Two");
-      form2.set("email", "a@x.com");
-      form2.set("password", "validPass123");
-      form2.set("confirmPassword", "validPass123");
+      form2.set("email", "a@example.test");
+      form2.set("password", "fake-test-password-123");
+      form2.set("confirmPassword", "fake-test-password-123");
 
       const res2 = await registerAction(form2);
       expect(res2).toEqual({
@@ -205,6 +206,34 @@ describe("Auth Server Actions ((auth)/actions.ts)", () => {
       );
 
       warnSpy.mockRestore();
+    });
+
+    it("reads client IP from x-vercel-forwarded-for header and passes it to IP rate limiter", async () => {
+      vi.mocked(headers).mockImplementationOnce(
+        () =>
+          new Headers({
+            "x-vercel-forwarded-for": "203.0.113.195, 70.41.3.18",
+            "x-real-ip": "198.51.100.2",
+          }) as unknown as Awaited<ReturnType<typeof headers>>
+      );
+
+      vi.mocked(db.user.create).mockResolvedValueOnce({
+        id: "u-1",
+        email: "user@example.com",
+        name: "User",
+        password: "hashed_password_123",
+      } as never);
+
+      const form = new FormData();
+      form.set("name", "User");
+      form.set("email", "user@example.com");
+      form.set("password", "validPass123");
+      form.set("confirmPassword", "validPass123");
+
+      const res = await registerAction(form);
+      expect(res).toEqual({ success: true });
+
+      expect(authRegisterIpRatelimit.limit).toHaveBeenCalledWith("203.0.113.195");
     });
 
     it("rejects password shorter than 10 characters", async () => {
@@ -437,14 +466,14 @@ describe("Auth Server Actions ((auth)/actions.ts)", () => {
       vi.mocked(signIn).mockResolvedValueOnce(undefined as never);
 
       const form = new FormData();
-      form.set("email", "  Reader@Chaptr.App  ");
-      form.set("password", "validpassword123");
+      form.set("email", "  Reader@Example.Test  ");
+      form.set("password", "fake-test-password-123");
 
       const res = await loginAction(form);
       expect(res).toEqual({ success: true });
       expect(signIn).toHaveBeenCalledWith("credentials", {
-        email: "reader@chaptr.app",
-        password: "validpassword123",
+        email: "reader@example.test",
+        password: "fake-test-password-123",
         redirectTo: "/library",
       });
     });

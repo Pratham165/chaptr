@@ -452,5 +452,18 @@ describe("Chapter Check Runner (runChapterCheck)", () => {
         })
       );
     });
+
+    it("clamps timeBudgetMs to MAX_TIME_BUDGET_MS (8000)", async () => {
+      vi.mocked(db.series.findMany).mockResolvedValue([]);
+
+      await runChapterCheck({ timeBudgetMs: 15000 });
+
+      // Lock TTL should be clamped budget (8000) + LOCK_BUFFER_MS (2000) = 10000
+      expect(redis.set).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        expect.objectContaining({ px: 10000 })
+      );
+    });
   });
 });

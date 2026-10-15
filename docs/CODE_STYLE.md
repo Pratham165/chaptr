@@ -17,10 +17,11 @@
 - One component per file, default export for pages/route components, named
   export for shared/reusable components.
 - Server actions live next to the feature that uses them (e.g.
-  `app/(dashboard)/library/actions.ts`), not centralized in one giant file.
-- Zod schemas live in `lib/validations/`, one file per resource
+  `src/app/(dashboard)/library/actions.ts`), not centralized in one giant file.
+- Zod schemas live in `src/lib/validations/`, one file per resource
   (`series.ts`, `progress.ts`, `user.ts`), imported by both client forms and
   server actions so validation logic isn't duplicated.
+- Source files should generally stay under 200 lines to maintain readability and modularity. Test files are exempt from the 200-line guideline.
 
 ## TypeScript conventions
 
